@@ -24,7 +24,7 @@ defmodule Todo.DatabaseTest do
   describe "Todo.Database" do
     test "start creates a pool of worker processes" do
       # Start the database with a test folder
-      {:ok, _} = Todo.Database.start(@test_db_folder)
+      {:ok, _} = Todo.Database.start_link(@test_db_folder)
 
       # Get the state to verify worker pool
       state = :sys.get_state(Todo.Database)
@@ -56,18 +56,20 @@ defmodule Todo.DatabaseTest do
 
       # Different keys might map to different workers
       different_keys = ["another_key", "yet_another_key", "one_more_key"]
-      different_worker_ids = Enum.map(different_keys, fn key ->
-        Todo.Database.choose_worker(key)
-      end)
+
+      different_worker_ids =
+        Enum.map(different_keys, fn key ->
+          Todo.Database.choose_worker(key)
+        end)
 
       # At least one key should map to a different worker
       assert Enum.count(Enum.uniq(different_worker_ids)) > 1 ||
-             worker_id not in different_worker_ids
+               worker_id not in different_worker_ids
     end
 
     test "store and get operations work correctly" do
       # Start the database with a test folder
-      {:ok, _} = Todo.Database.start(@test_db_folder)
+      {:ok, _} = Todo.Database.start_link(@test_db_folder)
 
       # Store some data
       test_key = "test_list"
@@ -99,7 +101,7 @@ defmodule Todo.DatabaseTest do
 
     test "get returns nil for non-existent keys" do
       # Start the database with a test folder
-      {:ok, _} = Todo.Database.start(@test_db_folder)
+      {:ok, _} = Todo.Database.start_link(@test_db_folder)
 
       assert Todo.Database.get("non_existent_key") == nil
 
@@ -117,14 +119,14 @@ defmodule Todo.DatabaseTest do
       refute File.exists?(test_folder)
 
       # Start worker
-      {:ok, _} = Todo.DatabaseWorker.start(test_folder)
+      {:ok, _} = Todo.DatabaseWorker.start_link(test_folder)
 
       # Verify folder was created
       assert File.exists?(test_folder)
     end
 
     test "store writes data to a file" do
-      {:ok, worker_pid} = Todo.DatabaseWorker.start(@test_db_folder)
+      {:ok, worker_pid} = Todo.DatabaseWorker.start_link(@test_db_folder)
 
       test_key = "test_key"
       test_data = %{title: "Test Data"}
@@ -145,7 +147,7 @@ defmodule Todo.DatabaseTest do
     end
 
     test "get reads data from a file" do
-      {:ok, worker_pid} = Todo.DatabaseWorker.start(@test_db_folder)
+      {:ok, worker_pid} = Todo.DatabaseWorker.start_link(@test_db_folder)
 
       test_key = "test_key"
       test_data = %{title: "Test Data"}
@@ -164,13 +166,13 @@ defmodule Todo.DatabaseTest do
     end
 
     test "get returns nil for non-existent keys" do
-      {:ok, worker_pid} = Todo.DatabaseWorker.start(@test_db_folder)
+      {:ok, worker_pid} = Todo.DatabaseWorker.start_link(@test_db_folder)
 
       assert Todo.DatabaseWorker.get(worker_pid, "non_existent_key") == nil
     end
 
     test "operations are performed asynchronously" do
-      {:ok, worker_pid} = Todo.DatabaseWorker.start(@test_db_folder)
+      {:ok, worker_pid} = Todo.DatabaseWorker.start_link(@test_db_folder)
 
       test_key = "async_test"
       test_data = %{title: "Async Test"}
@@ -196,6 +198,7 @@ defmodule Todo.DatabaseTest do
 
       # Verify the file doesn't exist immediately (proving it's async)
       file_path = Path.join(@test_db_folder, to_string(test_key))
+
       if File.exists?(file_path) do
         file_info = File.stat!(file_path)
         # If file exists, it should be empty or incomplete
@@ -211,9 +214,10 @@ defmodule Todo.DatabaseTest do
       assert :erlang.binary_to_term(binary_data) == test_data
 
       # Get should also be async (even though it's a call)
-      task = Task.async(fn ->
-        Todo.DatabaseWorker.get(worker_pid, test_key)
-      end)
+      task =
+        Task.async(fn ->
+          Todo.DatabaseWorker.get(worker_pid, test_key)
+        end)
 
       # The result should eventually be available
       assert Task.await(task) == test_data
@@ -223,7 +227,7 @@ defmodule Todo.DatabaseTest do
   describe "Integration tests" do
     test "end-to-end persistence" do
       # Start the database with a test folder
-      {:ok, _} = Todo.Database.start(@test_db_folder)
+      {:ok, _} = Todo.Database.start_link(@test_db_folder)
 
       # Store some data
       test_key = "integration_test"
@@ -258,7 +262,7 @@ defmodule Todo.DatabaseTest do
 
     test "persistence across process restarts" do
       # Start the database with a test folder
-      {:ok, _} = Todo.Database.start(@test_db_folder)
+      {:ok, _} = Todo.Database.start_link(@test_db_folder)
 
       # Store some data
       test_key = "restart_test"
@@ -271,10 +275,11 @@ defmodule Todo.DatabaseTest do
 
       # Stop the database
       GenServer.stop(Todo.Database)
-      Process.sleep(50) # Give it time to shut down
+      # Give it time to shut down
+      Process.sleep(50)
 
       # Start a new database instance
-      {:ok, _} = Todo.Database.start(@test_db_folder)
+      {:ok, _} = Todo.Database.start_link(@test_db_folder)
 
       # Data should still be retrievable
       assert Todo.Database.get(test_key) == test_data
@@ -285,19 +290,21 @@ defmodule Todo.DatabaseTest do
 
     test "multiple concurrent operations" do
       # Start the database with a test folder
-      {:ok, _} = Todo.Database.start(@test_db_folder)
+      {:ok, _} = Todo.Database.start_link(@test_db_folder)
 
       # Perform multiple concurrent operations
-      tasks = for i <- 1..10 do
-        Task.async(fn ->
-          key = "concurrent_#{i}"
-          data = %{title: "Concurrent Test #{i}"}
+      tasks =
+        for i <- 1..10 do
+          Task.async(fn ->
+            key = "concurrent_#{i}"
+            data = %{title: "Concurrent Test #{i}"}
 
-          Todo.Database.store(key, data)
-          Process.sleep(10) # Small delay to ensure some overlap
-          Todo.Database.get(key)
-        end)
-      end
+            Todo.Database.store(key, data)
+            # Small delay to ensure some overlap
+            Process.sleep(10)
+            Todo.Database.get(key)
+          end)
+        end
 
       # Wait for all tasks to complete
       results = Task.await_many(tasks, 5000)
