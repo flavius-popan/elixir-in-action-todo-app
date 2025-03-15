@@ -4,8 +4,8 @@ defmodule Todo.Database do
 
   @default_db_folder "./persist"
 
-  def start(db_folder \\ @default_db_folder) do
-    GenServer.start(__MODULE__, db_folder, name: __MODULE__)
+  def start_link(db_folder \\ @default_db_folder) do
+    GenServer.start_link(__MODULE__, db_folder, name: __MODULE__)
   end
 
   def store(list_name, data) do
@@ -22,8 +22,11 @@ defmodule Todo.Database do
 
   @impl GenServer
   def init(db_folder) do
+    IO.puts("Starting ToDo Database.")
+
     worker_pool =
-      Enum.map(0..2, fn i -> {i, elem(Todo.DatabaseWorker.start(db_folder), 1)} end) |> Map.new()
+      Enum.map(0..2, fn i -> {i, elem(Todo.DatabaseWorker.start_link(db_folder), 1)} end)
+      |> Map.new()
 
     {:ok, worker_pool}
   end
@@ -46,8 +49,8 @@ end
 defmodule Todo.DatabaseWorker do
   use GenServer
 
-  def start(db_folder) do
-    GenServer.start(__MODULE__, db_folder)
+  def start_link(db_folder) do
+    GenServer.start_link(__MODULE__, db_folder)
   end
 
   def store(worker_pid, list_name, data) do
@@ -60,6 +63,7 @@ defmodule Todo.DatabaseWorker do
 
   @impl GenServer
   def init(db_folder) do
+    IO.puts("Starting ToDo Database Worker.")
     File.mkdir_p!(db_folder)
     {:ok, db_folder}
   end
