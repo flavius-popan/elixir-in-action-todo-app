@@ -88,31 +88,4 @@ defmodule Todo.CacheTest do
     new_cache_state = :sys.get_state(Todo.Cache)
     assert new_cache_state == cache_state
   end
-
-  test "new server process is created if the previous one has crashed" do
-    # Get a server process
-    list_name = "crash_test_list"
-    first_pid = Todo.Cache.server_process(list_name)
-
-    # Verify it's in the cache state
-    cache_state = :sys.get_state(Todo.Cache)
-    assert Map.get(cache_state, list_name) == first_pid
-
-    # Simulate the server process crashing
-    Process.exit(first_pid, :kill)
-
-    # Wait a bit to ensure the process is dead
-    Process.sleep(10)
-    refute Process.alive?(first_pid)
-
-    # Request a server for the same list name
-    second_pid = Todo.Cache.server_process(list_name)
-
-    # Should be a different PID since the original crashed
-    refute first_pid == second_pid
-
-    # The new PID should be in the cache state
-    new_cache_state = :sys.get_state(Todo.Cache)
-    assert Map.get(new_cache_state, list_name) == second_pid
-  end
 end

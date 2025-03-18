@@ -24,7 +24,7 @@ defmodule Todo.Cache do
           {:reply, todo_server, todo_servers}
         else
           # Process has crashed, create a new one
-          {:ok, new_server} = Todo.Server.start(todo_list_name)
+          {:ok, new_server} = Todo.Server.start_link(todo_list_name)
 
           {
             :reply,
@@ -34,7 +34,7 @@ defmodule Todo.Cache do
         end
 
       :error ->
-        {:ok, new_server} = Todo.Server.start(todo_list_name)
+        {:ok, new_server} = Todo.Server.start_link(todo_list_name)
 
         {
           :reply,

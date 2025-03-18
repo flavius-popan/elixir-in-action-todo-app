@@ -38,8 +38,8 @@ defmodule Todo.Server do
     {:reply, Todo.List.entries(todo_list, date), {name, todo_list}}
   end
 
-  def start(list_name) do
-    GenServer.start(__MODULE__, list_name)
+  def start_link(list_name) do
+    GenServer.start_link(__MODULE__, list_name)
   end
 
   def add_entry(server_pid, entry) do
