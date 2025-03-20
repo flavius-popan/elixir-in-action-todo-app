@@ -6,7 +6,7 @@ defmodule Todo.CacheTest do
     Process.whereis(Todo.Cache) && GenServer.stop(Todo.Cache)
 
     # Start a fresh cache for each test with database start disabled
-    {:ok, _cache_pid} = Todo.Cache.start_link(_start_db = false)
+    {:ok, _cache_pid} = Todo.Cache.start_link()
 
     on_exit(fn ->
       # Clean up after test
