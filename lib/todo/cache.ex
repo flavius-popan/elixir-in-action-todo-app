@@ -7,6 +7,7 @@ defmodule Todo.Cache do
 
   @impl GenServer
   def init(_) do
+    IO.puts("Starting Cache.")
     {:ok, %{}}
   end
 
