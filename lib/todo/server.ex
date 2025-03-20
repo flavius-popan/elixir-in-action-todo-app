@@ -2,7 +2,23 @@ defmodule Todo.Server do
   @moduledoc """
   Split init with non-blocking return, followed by DB call in handle_continue()
   """
-  use GenServer
+  use GenServer, restart: :temporary
+
+  def start_link(list_name) do
+    GenServer.start_link(__MODULE__, list_name, name: via_tuple(list_name))
+  end
+
+  defp via_tuple(list_name) do
+    Todo.ProcessRegistry.via_tuple({__MODULE__, list_name})
+  end
+
+  def add_entry(server_pid, entry) do
+    GenServer.cast(server_pid, {:add, entry})
+  end
+
+  def entries(server_pid, date) do
+    GenServer.call(server_pid, {:entries, date})
+  end
 
   @impl GenServer
   def init(name) do
@@ -36,17 +52,5 @@ defmodule Todo.Server do
   @impl GenServer
   def handle_call({:entries, date}, _from, {name, todo_list}) do
     {:reply, Todo.List.entries(todo_list, date), {name, todo_list}}
-  end
-
-  def start_link(list_name) do
-    GenServer.start_link(__MODULE__, list_name)
-  end
-
-  def add_entry(server_pid, entry) do
-    GenServer.cast(server_pid, {:add, entry})
-  end
-
-  def entries(server_pid, date) do
-    GenServer.call(server_pid, {:entries, date})
   end
 end
